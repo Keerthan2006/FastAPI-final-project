@@ -1,0 +1,133 @@
+version: "3.9"
+
+services:
+  db:
+    image: postgres:16-alpine
+    container_name: internship-db
+
+    restart: unless-stopped
+
+    env_file:
+      - .env
+
+    volumes:
+      - postgres_data:/var/lib/postgresql/data
+
+    ports:
+      - "5432:5432"
+
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U postgres -d app"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+
+    networks:
+      - internship-network
+  migration:
+    build:
+      context: ./backend
+      dockerfile: Dockerfile
+    container_name: internship-migration
+    environment:
+      - PYTHONPATH=/app
+    env_file:
+      - ./backend/.env
+    command: alembic upgrade head
+    restart: "no"
+    depends_on:
+      db:
+        condition: service_healthy
+    networks:
+      - internship-network
+  initial-data:
+    build:
+      context: ./backend
+      dockerfile: Dockerfile
+    container_name: internship-initial-data
+    environment:
+      - PYTHONPATH=/app
+    env_file:
+      - ./backend/.env
+    command: python app/initial_data.py
+    depends_on:
+      migration:
+        condition: service_completed_successfully
+    restart: "no"
+    networks:
+      - internship-network
+  backend:
+    build:
+      context: ./backend
+      dockerfile: Dockerfile
+
+    container_name: internship-backend
+
+    restart: unless-stopped
+
+    env_file:
+      - ./backend/.env
+
+    depends_on:
+      db:
+        condition: service_healthy
+      migration:
+        condition: service_completed_successfully
+      initial-data:
+        condition: service_completed_successfully
+
+    ports:
+      - "8000:8000"
+
+    healthcheck:
+      test:
+        [
+          "CMD",
+          "python",
+          "-c",
+          "import urllib.request; urllib.request.urlopen('http://localhost:8000/docs')",
+        ]
+      interval: 30s
+      timeout: 10s
+      retries: 3
+
+    networks:
+      - internship-network
+
+  frontend:
+    build:
+      context: ./frontend
+      dockerfile: Dockerfile
+
+    container_name: internship-frontend
+
+    restart: unless-stopped
+
+    depends_on:
+      backend:
+        condition: service_healthy
+
+    ports:
+      - "5173:80"
+
+    healthcheck:
+      test:
+        [
+          "CMD",
+          "curl",
+          "-f",
+          "http://localhost"
+        ]
+      interval: 30s
+      timeout: 10s
+      retries: 3
+
+    networks:
+      - internship-network
+
+volumes:
+  postgres_data:
+
+networks:
+  internship-network:
+    driver: bridge
