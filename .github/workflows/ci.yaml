@@ -164,9 +164,7 @@ jobs:
     name: Trivy Scan
 
     runs-on: ubuntu-latest
-
-    needs: integration
-
+    needs: docker
     steps:
 
       - uses: actions/checkout@v4
