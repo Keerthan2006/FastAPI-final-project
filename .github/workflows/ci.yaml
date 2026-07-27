@@ -273,38 +273,50 @@ jobs:
             ${{ env.FRONTEND_IMAGE }}:${{ github.sha }}
 
 
-  deploy-k8s:
-    name: Update Kubernetes Image Tags
+  dast:
+    name: DAST Scan (OWASP ZAP)
+
     runs-on: ubuntu-latest
+
     needs: publish
+
     if: github.ref == 'refs/heads/main'
 
     steps:
       - name: Checkout Code
         uses: actions/checkout@v4
 
-      - name: Set up Kubeconfig Context
-        uses: azure/k8s-set-context@v4
-        with:
-          method: kubeconfig
-          kubeconfig: ${{ secrets.KUBECONFIG }}
-
-      - name: Notify Kubernetes & Update Deployment Image Tags
+      - name: Create Backend .env for DAST Environment
         run: |
-          IMAGE_TAG="${{ github.sha }}"
-          echo "Updating Kubernetes deployments with new image tag: ${IMAGE_TAG}"
+          cat <<EOF > backend/.env
+          PROJECT_NAME=${{ secrets.PROJECT_NAME }}
+          ENVIRONMENT=local
+          DOMAIN=localhost
+          SECRET_KEY=${{ secrets.SECRET_KEY }}
+          POSTGRES_SERVER=db
+          POSTGRES_PORT=5432
+          POSTGRES_DB=${{ secrets.POSTGRES_DB }}
+          POSTGRES_USER=${{ secrets.POSTGRES_USER }}
+          POSTGRES_PASSWORD=${{ secrets.POSTGRES_PASSWORD }}
+          FIRST_SUPERUSER=${{ secrets.FIRST_SUPERUSER }}
+          FIRST_SUPERUSER_PASSWORD=${{ secrets.FIRST_SUPERUSER_PASSWORD }}
+          EOF
 
-          # Update image tags in Kubernetes Deployment manifests
-          sed -i "s|image: .*internship-backend:.*|image: ${{ env.BACKEND_IMAGE }}:${IMAGE_TAG}|g" k8s/02-backend.yaml k8s/deployment.yaml
-          sed -i "s|image: .*internship-frontend:.*|image: ${{ env.FRONTEND_IMAGE }}:${IMAGE_TAG}|g" k8s/03-frontend.yaml k8s/deployment.yaml
+      - name: Start Docker Compose Application Stack
+        run: |
+          docker compose up -d --build
+          echo "Waiting for application services to become healthy..."
+          sleep 20
 
-          # Apply updated Kubernetes manifests to cluster
-          kubectl apply -f k8s/ -n internship-app
+      - name: OWASP ZAP Baseline DAST Scan
+        uses: zaproxy/action-baseline@v0.14.0
+        with:
+          token: ${{ secrets.GITHUB_TOKEN }}
+          target: 'http://localhost:5173'
+          cmd_options: '-a'
+          fail_action: false
+          issue_title: 'DAST Scan Vulnerability Report (OWASP ZAP)'
 
-          # Perform zero-downtime rolling update in Kubernetes
-          kubectl set image deployment/backend-deployment backend=${{ env.BACKEND_IMAGE }}:${IMAGE_TAG} -n internship-app
-          kubectl set image deployment/frontend-deployment frontend=${{ env.FRONTEND_IMAGE }}:${IMAGE_TAG} -n internship-app
-
-          # Wait for rolling update to complete
-          kubectl rollout status deployment/backend-deployment -n internship-app --timeout=120s
-          kubectl rollout status deployment/frontend-deployment -n internship-app --timeout=120s
+      - name: Stop Docker Compose Application Stack
+        if: always()
+        run: docker compose down -v
