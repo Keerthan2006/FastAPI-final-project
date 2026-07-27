@@ -49,7 +49,7 @@ const AddUser = ({ isOpen, onClose }: AddUserProps) => {
       password: "",
       confirm_password: "",
       is_superuser: false,
-      is_active: false,
+      is_active: true,
     },
   })
 
@@ -71,7 +71,8 @@ const AddUser = ({ isOpen, onClose }: AddUserProps) => {
   })
 
   const onSubmit: SubmitHandler<UserCreateForm> = (data) => {
-    mutation.mutate(data)
+    const { confirm_password, ...userCreateData } = data
+    mutation.mutate(userCreateData)
   }
 
   return (

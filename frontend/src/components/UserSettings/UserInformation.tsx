@@ -55,7 +55,9 @@ const UserInformation = () => {
       UsersService.updateUserMe({ requestBody: data }),
     onSuccess: () => {
       showToast("Success!", "User updated successfully.", "success")
+      setEditMode(false)
     },
+
     onError: (err: ApiError) => {
       const errDetail = (err.body as any)?.detail
       showToast("Something went wrong.", `${errDetail}`, "error")
@@ -134,13 +136,14 @@ const UserInformation = () => {
           <Flex mt={4} gap={3}>
             <Button
               variant="primary"
-              onClick={toggleEditMode}
-              type={editMode ? "button" : "submit"}
+              type={editMode ? "submit" : "button"}
+              onClick={editMode ? undefined : toggleEditMode}
               isLoading={editMode ? isSubmitting : false}
               isDisabled={editMode ? !isDirty || !getValues("email") : false}
             >
               {editMode ? "Save" : "Edit"}
             </Button>
+
             {editMode && (
               <Button onClick={onCancel} isDisabled={isSubmitting}>
                 Cancel

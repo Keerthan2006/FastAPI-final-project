@@ -53,7 +53,7 @@ const EditUser = ({ user, isOpen, onClose }: EditUserProps) => {
   })
 
   const mutation = useMutation({
-    mutationFn: (data: UserUpdateForm) =>
+    mutationFn: (data: UserUpdate) =>
       UsersService.updateUser({ userId: user.id, requestBody: data }),
     onSuccess: () => {
       showToast("Success!", "User updated successfully.", "success")
@@ -69,10 +69,11 @@ const EditUser = ({ user, isOpen, onClose }: EditUserProps) => {
   })
 
   const onSubmit: SubmitHandler<UserUpdateForm> = async (data) => {
-    if (data.password === "") {
-      data.password = undefined
+    const { confirm_password, ...userUpdateData } = data
+    if (userUpdateData.password === "") {
+      userUpdateData.password = undefined
     }
-    mutation.mutate(data)
+    mutation.mutate(userUpdateData)
   }
 
   const onCancel = () => {

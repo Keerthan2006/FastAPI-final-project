@@ -1,6 +1,6 @@
 # Build Stage
 
-FROM node:26-alpine3.23 AS builder
+FROM node:20-alpine AS builder
 
 WORKDIR /app
 
@@ -12,11 +12,10 @@ COPY . .
 
 RUN npm run build
 ######################
-FROM nginx:1.31.3
+FROM nginx:alpine
 
-RUN apt-get update && \
-    apt-get install -y curl && \
-    rm -rf /var/lib/apt/lists/*
+
+RUN apk add --no-cache curl
 
 RUN rm -f /etc/nginx/conf.d/default.conf
 

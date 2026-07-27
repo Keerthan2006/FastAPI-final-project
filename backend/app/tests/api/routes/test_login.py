@@ -4,7 +4,7 @@ from fastapi.testclient import TestClient
 from sqlmodel import Session, select
 
 from app.core.config import settings
-from app.core.security import verify_password
+from app.core.security import get_password_hash, verify_password
 from app.models import User
 from app.utils import generate_password_reset_token
 
@@ -48,6 +48,7 @@ def test_recovery_password(
     with (
         patch("app.core.config.settings.SMTP_HOST", "smtp.example.com"),
         patch("app.core.config.settings.SMTP_USER", "admin@example.com"),
+        patch("app.core.config.settings.EMAILS_FROM_EMAIL", "admin@example.com"),
     ):
         email = "test@example.com"
         r = client.post(
@@ -86,6 +87,11 @@ def test_reset_password(
     user = db.exec(user_query).first()
     assert user
     assert verify_password(data["new_password"], user.hashed_password)
+
+    # Restore original password for other tests
+    user.hashed_password = get_password_hash(settings.FIRST_SUPERUSER_PASSWORD)
+    db.add(user)
+    db.commit()
 
 
 def test_reset_password_invalid_token(
