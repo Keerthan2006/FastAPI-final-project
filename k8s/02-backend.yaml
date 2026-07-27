@@ -31,26 +31,36 @@ spec:
                 name: app-secrets
 
         - name: run-migrations
-          image: YOUR_DOCKERHUB_USERNAME/internship-backend:latest
+          image: keerthan2006/internship-backend:latest
+          imagePullPolicy: IfNotPresent
           command:
             - sh
             - -c
             - |
-              poetry run alembic upgrade head
-              poetry run python app/initial_data.py
+              export PYTHONPATH=/app
+              alembic upgrade head
+              python app/initial_data.py
           envFrom:
             - secretRef:
                 name: app-secrets
+          env:
+            - name: POSTGRES_SERVER
+              value: "db-service"
 
       containers:
         - name: backend
-          image: YOUR_DOCKERHUB_USERNAME/internship-backend:latest
-          imagePullPolicy: Always
+          image: keerthan2006/internship-backend:latest
+          imagePullPolicy: IfNotPresent
           ports:
             - containerPort: 8000
           envFrom:
             - secretRef:
                 name: app-secrets
+          env:
+            - name: PYTHONPATH
+              value: "/app"
+            - name: POSTGRES_SERVER
+              value: "db-service"
           resources:
             requests:
               memory: "256Mi"

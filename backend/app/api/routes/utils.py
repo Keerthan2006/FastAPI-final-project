@@ -8,6 +8,11 @@ from app.utils import generate_test_email, send_email
 router = APIRouter()
 
 
+@router.get("/health-check/", response_model=bool)
+def health_check() -> bool:
+    return True
+
+
 @router.post(
     "/test-email/",
     dependencies=[Depends(get_current_active_superuser)],

@@ -18,11 +18,15 @@ echo "Creating Kubernetes namespace '$NAMESPACE' if it does not exist..."
 kubectl create namespace "$NAMESPACE" --dry-run=client -o yaml | kubectl apply -f -
 
 echo "Creating Kubernetes Secret '$SECRET_NAME' from '$ENV_FILE'..."
+TMP_ENV=$(mktemp)
+grep -v '^POSTGRES_SERVER=' "$ENV_FILE" > "$TMP_ENV"
+echo "POSTGRES_SERVER=db-service" >> "$TMP_ENV"
+
 kubectl create secret generic "$SECRET_NAME" \
   --namespace="$NAMESPACE" \
-  --from-env-file="$ENV_FILE" \
+  --from-env-file="$TMP_ENV" \
   --dry-run=client -o yaml | \
-  sed 's/POSTGRES_SERVER=.*/POSTGRES_SERVER=db-service/' | \
   kubectl apply -f -
 
+rm -f "$TMP_ENV"
 echo "Secret '$SECRET_NAME' successfully created/updated in namespace '$NAMESPACE'."

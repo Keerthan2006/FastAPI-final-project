@@ -1,15 +1,27 @@
-name: DevSecOps CI
+name: DevSecOps CI & Kubernetes Deploy
 
 on:
   push:
     branches:
       - main
       - develop
-
+    paths:
+      - '**/Dockerfile'
+      - 'backend/**'
+      - 'frontend/**'
+      - 'k8s/**'
+      - '.github/workflows/**'
   pull_request:
     branches:
       - main
       - develop
+    paths:
+      - '**/Dockerfile'
+      - 'backend/**'
+      - 'frontend/**'
+      - 'k8s/**'
+      - '.github/workflows/**'
+  workflow_dispatch:
 
 permissions:
   contents: read
@@ -20,8 +32,6 @@ env:
   FRONTEND_IMAGE: ${{ secrets.DOCKERHUB_USERNAME }}/internship-frontend
 
 jobs:
-
-
 
   gitleaks:
     name: Secret Scan
@@ -226,7 +236,7 @@ jobs:
 
 
   publish:
-    name: Push Images
+    name: Push Docker Images
 
     runs-on: ubuntu-latest
 
@@ -261,3 +271,40 @@ jobs:
           tags: |
             ${{ env.FRONTEND_IMAGE }}:latest
             ${{ env.FRONTEND_IMAGE }}:${{ github.sha }}
+
+
+  deploy-k8s:
+    name: Update Kubernetes Image Tags
+    runs-on: ubuntu-latest
+    needs: publish
+    if: github.ref == 'refs/heads/main'
+
+    steps:
+      - name: Checkout Code
+        uses: actions/checkout@v4
+
+      - name: Set up Kubeconfig Context
+        uses: azure/k8s-set-context@v4
+        with:
+          method: kubeconfig
+          kubeconfig: ${{ secrets.KUBECONFIG }}
+
+      - name: Notify Kubernetes & Update Deployment Image Tags
+        run: |
+          IMAGE_TAG="${{ github.sha }}"
+          echo "Updating Kubernetes deployments with new image tag: ${IMAGE_TAG}"
+
+          # Update image tags in Kubernetes Deployment manifests
+          sed -i "s|image: .*internship-backend:.*|image: ${{ env.BACKEND_IMAGE }}:${IMAGE_TAG}|g" k8s/02-backend.yaml k8s/deployment.yaml
+          sed -i "s|image: .*internship-frontend:.*|image: ${{ env.FRONTEND_IMAGE }}:${IMAGE_TAG}|g" k8s/03-frontend.yaml k8s/deployment.yaml
+
+          # Apply updated Kubernetes manifests to cluster
+          kubectl apply -f k8s/ -n internship-app
+
+          # Perform zero-downtime rolling update in Kubernetes
+          kubectl set image deployment/backend-deployment backend=${{ env.BACKEND_IMAGE }}:${IMAGE_TAG} -n internship-app
+          kubectl set image deployment/frontend-deployment frontend=${{ env.FRONTEND_IMAGE }}:${IMAGE_TAG} -n internship-app
+
+          # Wait for rolling update to complete
+          kubectl rollout status deployment/backend-deployment -n internship-app --timeout=120s
+          kubectl rollout status deployment/frontend-deployment -n internship-app --timeout=120s

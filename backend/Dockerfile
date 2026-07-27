@@ -28,13 +28,15 @@ COPY . .
 FROM python:3.12-slim
 
 ENV PYTHONDONTWRITEBYTECODE=1 \
-    PYTHONUNBUFFERED=1
+    PYTHONUNBUFFERED=1 \
+    PYTHONPATH=/app \
+    POETRY_VIRTUALENVS_CREATE=false
 
 WORKDIR /app
 
-# Create a non-root user
-RUN groupadd -r appuser && useradd -r -g appuser appuser \
-    && chown -R appuser:appuser /app
+# Create a non-root user with home directory
+RUN groupadd -r appuser && useradd -m -r -g appuser appuser \
+    && chown -R appuser:appuser /app /home/appuser
 
 
 COPY --from=builder /usr/local /usr/local
