@@ -288,26 +288,41 @@ jobs:
 
       - name: Create .env files for DAST Environment
         run: |
+          PROJECT_NAME="${{ secrets.PROJECT_NAME }}"
+          PROJECT_NAME="${PROJECT_NAME:-FastAPI App}"
+          SECRET_KEY="${{ secrets.SECRET_KEY }}"
+          SECRET_KEY="${SECRET_KEY:-changethis-secretkey-for-dast-testing-123456789}"
+          POSTGRES_DB="${{ secrets.POSTGRES_DB }}"
+          POSTGRES_DB="${POSTGRES_DB:-app}"
+          POSTGRES_USER="${{ secrets.POSTGRES_USER }}"
+          POSTGRES_USER="${POSTGRES_USER:-postgres}"
+          POSTGRES_PASSWORD="${{ secrets.POSTGRES_PASSWORD }}"
+          POSTGRES_PASSWORD="${POSTGRES_PASSWORD:-postgres}"
+          FIRST_SUPERUSER="${{ secrets.FIRST_SUPERUSER }}"
+          FIRST_SUPERUSER="${FIRST_SUPERUSER:-admin@example.com}"
+          FIRST_SUPERUSER_PASSWORD="${{ secrets.FIRST_SUPERUSER_PASSWORD }}"
+          FIRST_SUPERUSER_PASSWORD="${FIRST_SUPERUSER_PASSWORD:-admin123}"
+
           cat <<EOF > backend/.env
-          PROJECT_NAME=${{ secrets.PROJECT_NAME }}
+          PROJECT_NAME=${PROJECT_NAME}
           ENVIRONMENT=local
           DOMAIN=localhost
-          SECRET_KEY=${{ secrets.SECRET_KEY }}
+          SECRET_KEY=${SECRET_KEY}
           POSTGRES_SERVER=db
           POSTGRES_PORT=5432
-          POSTGRES_DB=${{ secrets.POSTGRES_DB }}
-          POSTGRES_USER=${{ secrets.POSTGRES_USER }}
-          POSTGRES_PASSWORD=${{ secrets.POSTGRES_PASSWORD }}
-          FIRST_SUPERUSER=${{ secrets.FIRST_SUPERUSER }}
-          FIRST_SUPERUSER_PASSWORD=${{ secrets.FIRST_SUPERUSER_PASSWORD }}
+          POSTGRES_DB=${POSTGRES_DB}
+          POSTGRES_USER=${POSTGRES_USER}
+          POSTGRES_PASSWORD=${POSTGRES_PASSWORD}
+          FIRST_SUPERUSER=${FIRST_SUPERUSER}
+          FIRST_SUPERUSER_PASSWORD=${FIRST_SUPERUSER_PASSWORD}
           EOF
           cp backend/.env .env
 
       - name: Start Docker Compose Application Stack
         run: |
           docker compose up -d --build
-          echo "Waiting for application services to become healthy..."
-          sleep 20
+          echo "Waiting for frontend service on http://localhost:5173 to become responsive..."
+          timeout 120s bash -c 'until curl -s -f http://localhost:5173 > /dev/null; do sleep 2; done' || (docker compose logs && exit 1)
 
       - name: OWASP ZAP Baseline DAST Scan
         uses: zaproxy/action-baseline@v0.14.0
