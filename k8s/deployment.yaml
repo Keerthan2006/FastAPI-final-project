@@ -14,16 +14,16 @@ metadata:
 type: Opaque
 stringData:
   PROJECT_NAME: "Internship Project"
-  SECRET_KEY: "0tP6cJ_splmBipxQTYqaCC2TvGZupfXdW1GCRSoqgD4"
+  SECRET_KEY: "CHANGE_ME_SECRET_KEY"
   DOMAIN: "localhost"
   ENVIRONMENT: "production"
   POSTGRES_SERVER: "db-service"
   POSTGRES_PORT: "5432"
   POSTGRES_USER: "postgres"
-  POSTGRES_PASSWORD: "postgres"
+  POSTGRES_PASSWORD: "CHANGE_ME_POSTGRES_PASSWORD"
   POSTGRES_DB: "app"
   FIRST_SUPERUSER: "admin@example.com"
-  FIRST_SUPERUSER_PASSWORD: "Admin@12345"
+  FIRST_SUPERUSER_PASSWORD: "CHANGE_ME_SUPERUSER_PASSWORD"
 ---
 # 3. PostgreSQL PersistentVolumeClaim
 apiVersion: v1
